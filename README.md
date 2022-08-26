@@ -35,3 +35,8 @@ Toggle between the editor and terminal using ESC followed by TAB, then activate 
 ## `journal.txt`
 
 This file seems to grow in length as you progress in the challenges, and has messages that have shown up in the cli. I would assume this contains all story messages.
+When you initially start it contains only this:
+
+
+> Success! You've managed to infiltrate Commander Lambda's evil organization, and finally earned yourself an entry-level position as a Minion on their space station. From here, you just might be able to subvert Commander Lambda's plans to use the LAMBCHOP doomsday device to destroy Bunny Planet. Problem is, Minions are the lowest of the low in the Lambda hierarchy. Better buck up and get working, or you'll never make it to the top...
+
