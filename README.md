@@ -42,3 +42,8 @@ When you initially start it contains only this:
 
 > Success! You've managed to infiltrate Commander Lambda's evil organization, and finally earned yourself an entry-level position as a Minion on their space station. From here, you just might be able to subvert Commander Lambda's plans to use the LAMBCHOP doomsday device to destroy Bunny Planet. Problem is, Minions are the lowest of the low in the Lambda hierarchy. Better buck up and get working, or you'll never make it to the top...
 
+## Copyright
+
+I normally try to keep most of my work open-source and free to use under copyleft licenses, but that is not the case here:
+
+> Challenges are copyright their respective owner(s), solutions are Copyright (c) QuinnDT and you may not use them as solutions to your own FooBar challenges.
