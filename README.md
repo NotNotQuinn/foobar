@@ -30,3 +30,8 @@ Ctrl + E	close the editor [when editor is focused]
 
 Toggle between the editor and terminal using ESC followed by TAB, then activate with ENTER.
 ```
+
+
+## `journal.txt`
+
+This file seems to grow in length as you progress in the challenges, and has messages that have shown up in the cli. I would assume this contains all story messages.
