@@ -1,5 +1,5 @@
 # foobar
-Google FooBar Challenges that I encountered.
+[Google FooBar](https://foobar.withgoogle.com/) Challenges that I encountered.
 
 This file is the only one that doesn't appear in the actual foobar site, which is a web-based cli sim.
 For each challenge it seems there is a 7 day time limit.
