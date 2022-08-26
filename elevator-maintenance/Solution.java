@@ -1,5 +1,5 @@
 public class Solution {
-    public static int[] solution(int[] data, int n) {
+    public static String[] solution(String[] l) {
         // Your code here
     }
 }
