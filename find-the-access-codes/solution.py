@@ -1,4 +1,3 @@
-
 # This technically works, although it takes about 1 min for 2000 random numbers between 1 and 4 inclusive.
 # So I rewrote it in java, see Solution.java
 def solution(l):
