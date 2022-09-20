@@ -45,7 +45,7 @@ Level 4:   0% [..........................................]
 Level 5:   0% [..........................................]
 ```
 
-Each "level" isn't just one problem. It seems like level 1 has 1 problem, 2 has 2, 3 has 3 and so on.
+Each "level" isn't just one problem. For example level 3 had 3 problems for me, and level 4 has 2 problems.
 
 ## `journal.txt`
 
