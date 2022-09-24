@@ -2,7 +2,7 @@
 [Google FooBar](https://foobar.withgoogle.com/) Challenges that I encountered.
 
 This file is the only one that doesn't appear in the actual foobar site, which is a web-based cli sim.
-For each challenge it seems there is a 7 day time limit.
+For each challenge it seems there is a 7 day time limit, for challenges starting in level 4 the time limit is increased to 360 hours (15 days).
 
 I did most of my solutions in python (2.7, which is the only version availible) and used https://www.pythonsandbox.com/ to test my trivial solutions, but ended up installing python 2.7 on my machine because the website doesn't show output until the program finishes, and some of my solutions took a while to run before optimizing them.
 
