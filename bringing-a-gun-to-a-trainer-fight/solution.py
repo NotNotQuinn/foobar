@@ -58,7 +58,7 @@ def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max
 
     if x_dim < 100:
         # TODO: Refactor visualize_solution_ascii to return a string.
-        visualize_solution_ascii([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance)
+        print visualize_solution_ascii([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance)
     else:
         print "Visualization skipped due to size of room. (x dimension >= 100)"
 
@@ -175,46 +175,46 @@ def visualize_solution_ascii(dimensions, your_position, trainer_position, max_di
     y_digit_len = len(str(y_dim))
     x_digit_len = len(str(x_dim))
 
-    print " "+str(y_dim).rjust(y_digit_len)+" "+"%="+"+="*(x_dim-1) + "%"
+    output = " "+str(y_dim).rjust(y_digit_len)+" "+"%="+"+="*(x_dim-1) + "%\n"
     for i in range(y_dim-1, 0, -1):
         # Print y number
-        print " "+str(i).rjust(y_digit_len),
+        output += " "+str(i).rjust(y_digit_len)+" "
         if y_self == i and y_target == i:
             # Draw self and target
             if x_self < x_target:
                 # Draw self first, then target
-                print "|-"+"+-"*(x_self-1)+"@-"+"+-"*(x_target-x_self-1)+"&-"+"+-"*(x_dim-x_target-1)+"|"
+                output += "|-"+"+-"*(x_self-1)+"@-"+"+-"*(x_target-x_self-1)+"&-"+"+-"*(x_dim-x_target-1)+"|\n"
             else:
                 # Draw target first, then self
-                print "|-"+"+-"*(x_target-1)+"&-"+"+-"*(x_self-x_target-1)+"@-"+"+-"*(x_dim-x_self-1)+"|"
+                output += "|-"+"+-"*(x_target-1)+"&-"+"+-"*(x_self-x_target-1)+"@-"+"+-"*(x_dim-x_self-1)+"|\n"
         elif y_self == i:
             # Draw self
-            print "|-"+ "+-"*(x_self-1)+"@-"+"+-"*(x_dim-x_self-1)+"|"
+            output += "|-"+ "+-"*(x_self-1)+"@-"+"+-"*(x_dim-x_self-1)+"|\n"
         elif y_target == i:
             # Draw target
-            print "|-"+ "+-"*(x_target-1)+"&-"+"+-"*(x_dim-x_target-1)+"|"
+            output += "|-"+ "+-"*(x_target-1)+"&-"+"+-"*(x_dim-x_target-1)+"|\n"
         else:
             # Draw empty line
-            print "|-"+ "+-"*(x_dim-1) + "|"
+            output += "|-"+ "+-"*(x_dim-1) + "|\n"
     # Print final row and then numbers.
-    print " "+"0".rjust(y_digit_len)+" "+"%="+"+="*(x_dim-1) + "%"
+    output += " "+"0".rjust(y_digit_len)+" "+"%="+"+="*(x_dim-1) + "%\n"
     if x_digit_len == 1:
         # Single digits, easy!
-        print " "+" "*y_digit_len,
+        output += " "+" "*y_digit_len+" "
         for i in range(0, x_dim+1):
-            print i,
-        print
+            output += str(i)+" "
     else:
         if x_digit_len > 2:
-            print " "+" "*y_digit_len + " Only the last 2 digits are shown here."
+            output += " "+" "*y_digit_len + " Only the last 2 digits are shown here.\n"
         # Assuming double digits, for now
-        print " "+" "*y_digit_len + "                    ",
+        output += " "+" "*y_digit_len + "                     "
         for i in range(10, x_dim+1):
-            print (i//10)%10,
-        print "\n "+" "*y_digit_len,
+            output += str((i//10)%10)+" "
+        output += "\n "+" "*y_digit_len+" "
         for i in range(0, x_dim+1):
-            print i%10,
-        print
+            output += str(i%10)+" "
+
+    return output
 
 
 # Visualizes the solution using an image
