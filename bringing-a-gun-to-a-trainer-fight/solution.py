@@ -217,20 +217,122 @@ def visualize_solution_ascii(dimensions, your_position, trainer_position, max_di
     return output
 
 
-# Visualizes the solution using an image
-def visualize_solution_image():
-    # TODO: Implement; possibly using turtle or tkinter.
-    # turtle would be easiest, so long as you can control the start position
-    # UPDATE: Yes, you can control it by turning off the pen and moving to the desired position.
-    pass
+# Visualizes the solution using the turtle library
+def visualize_solution_turtle(dimensions, your_position, trainer_position, max_distance):
+    x_dim, y_dim = dimensions
+    x_self, y_self = your_position
+    x_target, y_target = trainer_position
 
+    # Simplification:
+    gcf = gcf_arr([x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance])
+    if gcf > 1:
+        x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance = (n // gcf for n in (x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance))
+
+    solutions = get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance)
+    px = 50  # Pixel size
+
+    import turtle
+
+    def turtle_goto(x, y):
+        turtle.reset()
+        turtle.penup()
+        turtle.left(180)
+        turtle.fd(x*px/2)
+        turtle.right(90)
+        turtle.fd(y*px/2)
+        turtle.right(90) # to do full 360 degrees
+        turtle.pendown()
+
+
+    # Turtle resetting and managing state:
+    turtle.clear()
+    # turtle.hideturtle()
+    turtle.screensize(bg="#000") # Doesn't work?
+    turtle.title("solution"+repr((dimensions, your_position, trainer_position, max_distance))+" == "+str(len(solutions)))
+    turtle.bgcolor("#000") # black
+    turtle.pencolor("#FFF") # white
+    turtle.speed(0) # instant
+
+    # Moving to initial position (top left of visualization):
+    turtle.penup()
+    turtle.left(180)
+    turtle.fd(x_dim*px/2)
+    turtle.right(90)
+    turtle.fd(y_dim*px/2)
+    turtle.right(90) # to do full 360 degrees
+    turtle.pendown()
+
+    # Drawing grid:
+    # x lines
+    for i in range(y_dim+1):
+        turtle.fd(x_dim*px)
+        if i == y_dim:
+            if y_dim%2 == 0:
+                turtle.left(90)
+            else:
+                turtle.right(180)
+                turtle.fd(x_dim*px)
+                turtle.left(90)
+            break
+        if i%2 == 0:
+            turtle.right(90)
+            turtle.fd(px)
+            turtle.right(90)
+        else:
+            turtle.left(90)
+            turtle.fd(px)
+            turtle.left(90)
+    # y lines
+    for i in range(x_dim+1):
+        turtle.fd(y_dim*px)
+        if i == x_dim:
+            if i%2 == 0:
+                turtle.left(180)
+                turtle.fd(y_dim*px)
+                turtle.left(90)
+            else:
+                turtle.left(90)
+            break
+        if i%2 == 1:
+            turtle.right(90)
+            turtle.fd(px)
+            turtle.right(90)
+        else:
+            turtle.left(90)
+            turtle.fd(px)
+            turtle.left(90)
+    # Current position: bottom left of visualization (0, 0), facing right
+    # Now draw ourselves (green) and the target (red)
+    angle, distance = vector_bearing_to_vector(x_self,y_self)
+    turtle.left(angle)
+    turtle.fd(distance*px)
+
+    # Wait for window to close:
+    turtle.exitonclick()
+
+# Returns (angle, distance)
+def vector_bearing_to_vector(x, y):
+    # cos(x) = adjacent/hypotenuse
+
+    distance = math.hypot(x, y)
+    radians = math.acos(x/distance)
+    return ((radians*180)/math.pi, distance)
 
 ##################################################
 # vvvvvvv  TESTING FRAMEWORK COPY-PASTE  vvvvvvv #
 ##################################################
-import traceback
 
-def test(log_on_success=True, print_input=False, visualize=False):
+# Tests the current solution.
+# Possible values for visualize= are:
+#   None (do not visualize)
+#   "ascii" (a str)
+#       log an ascii depiction of the solution
+#   ("turtle", n) (a tuple)
+#       open a window and show a graphical representation of the solution
+#       n == the test case to visualize
+def test(log_on_success=True, print_input=False, visualize=None):
+    import traceback
+
     # Format: (input_arguments, correct_output)
     # Input: (dimensions, your_position, trainer_position, distance)
 
@@ -254,8 +356,12 @@ def test(log_on_success=True, print_input=False, visualize=False):
         if print_input: print '(#'+str(i).zfill(3)+') RUNNING: solution( '+repr(arguments)[1:-1]+' ) == '+repr(correct)+''
         success = False
 
-        if visualize:
+        if visualize == "ascii":
             log += visualize_solution_ascii(*arguments)
+        elif isinstance(visualize, tuple):
+            if visualize[0] == "turtle" and visualize[1] == i:
+                print "Visualizing using turtle!"
+                visualize_solution_turtle(*arguments)
 
         try:
             result = solution(*arguments)
@@ -272,8 +378,9 @@ def test(log_on_success=True, print_input=False, visualize=False):
             err_msg = traceback.format_exc()[:-1] # trim trailing newline
             log += '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[41;91m[ERROR]\x1b[0m \x1b[32m['+repr(correct)+']\n\x1b[31m'+err_msg+'\x1b[0m\n'
         if len(log) > 0 and (log_on_success and success or not success): print log[:-1]
+
     print "Passed:", passed_count, "of", len(tests)
     if len(failed) > 0: print "Failed:", repr(failed)
     if len(errored) > 0: print "Errored:", repr(errored)
 
-test(print_input=True, log_on_success=False, visualize=True)
+test(print_input=True, log_on_success=False, visualize=("turtle", 0))
