@@ -49,18 +49,7 @@ def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max
 
     # Simplification:
     gcf = gcf_arr([x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance])
-    if gcf > 1:
-        x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance = (n // gcf for n in (x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance))
-        print "Simplified by "+str(gcf)+":",
-    else:
-        print "Unable to simplify:",
-    print "solution(", repr(([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance))[1:-1] + " )"
-
-    if x_dim < 100:
-        # TODO: Refactor visualize_solution_ascii to return a string.
-        print visualize_solution_ascii([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance)
-    else:
-        print "Visualization skipped due to size of room. (x dimension >= 100)"
+    if gcf > 1: x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance = (n // gcf for n in (x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance))
 
     good_slopes = set()
     max_distance_squared = max_distance**2
@@ -155,7 +144,7 @@ def bounce_count_to_distance_1d(bounding_room_length, start_point, end_point, bo
     return coefficient*bounding_room_length + sign*end_point - start_point
 
 
-# Prints an ASCII representation of the room (without simplifying) to standard output.
+# Returns an ASCII representation of the room (after simplifying).
 # Accepts the same arguments as solution() but does not use max_distance.
 # Legend:
 #   "@" = ourselves
@@ -167,15 +156,26 @@ def bounce_count_to_distance_1d(bounding_room_length, start_point, end_point, bo
 #   0 %=+=+=%
 #     0 1 2 3
 def visualize_solution_ascii(dimensions, your_position, trainer_position, max_distance):
+    output = ""
     x_dim, y_dim = dimensions
     x_self, y_self = your_position
     x_target, y_target = trainer_position
+
+    # Simplification:
+    gcf = gcf_arr([x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance])
+    if gcf > 1:
+        x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance = (n // gcf for n in (x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance))
+        output += "Simplified by "+str(gcf)+": "
+    else:
+        output += "Unable to simplify: "
+    output += "solution( "+ repr(([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance))[1:-1] + " )\n"
+
 
     # Visualization:
     y_digit_len = len(str(y_dim))
     x_digit_len = len(str(x_dim))
 
-    output = " "+str(y_dim).rjust(y_digit_len)+" "+"%="+"+="*(x_dim-1) + "%\n"
+    output += " "+str(y_dim).rjust(y_digit_len)+" "+"%="+"+="*(x_dim-1) + "%\n"
     for i in range(y_dim-1, 0, -1):
         # Print y number
         output += " "+str(i).rjust(y_digit_len)+" "
@@ -213,7 +213,7 @@ def visualize_solution_ascii(dimensions, your_position, trainer_position, max_di
         output += "\n "+" "*y_digit_len+" "
         for i in range(0, x_dim+1):
             output += str(i%10)+" "
-
+    output += '\n'
     return output
 
 
@@ -224,42 +224,56 @@ def visualize_solution_image():
     # UPDATE: Yes, you can control it by turning off the pen and moving to the desired position.
     pass
 
+
 ##################################################
 # vvvvvvv  TESTING FRAMEWORK COPY-PASTE  vvvvvvv #
 ##################################################
 import traceback
 
-def test(print_success=True, print_input=False):
+def test(log_on_success=True, print_input=False, visualize=False):
     # Format: (input_arguments, correct_output)
     # Input: (dimensions, your_position, trainer_position, distance)
 
     tests = {
         # Given 100% known:
-        0: (([3,2], [1,1], [2,1], 4), 7),
+        0: (([3,2], [1,1], [2,1], 5), 7),
         1: (([300,275], [150,150], [185,100], 500), 9),
         # Hand-Calculated:
-        2: (([3, 3], [1, 1], [2, 2], 5), 7),
+        2: (([3, 3], [1, 1], [2, 2], 4), 7),
         3: (([3, 3], [2, 2], [1, 1], 5), 7),
         4: (([3, 3], [2, 1], [1, 2], 5), 7),
         5: (([3, 3], [1, 2], [2, 1], 5), 7),
     }
 
+    passed_count = 0
+    failed = []
+    errored = []
     for i in tests:
         (arguments, correct) = tests[i]
-        if print_input: print '(#'+str(i).zfill(3)+') RUNNING: solution( '+repr(arguments)[1:-1]+' )'
+        log = ""
+        if print_input: print '(#'+str(i).zfill(3)+') RUNNING: solution( '+repr(arguments)[1:-1]+' ) == '+repr(correct)+''
         success = False
+
+        if visualize:
+            log += visualize_solution_ascii(*arguments)
 
         try:
             result = solution(*arguments)
             success = result == correct
-            if not success or (success and print_success):
-                if success:
-                    print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[32m'+repr(result)+'\x1b[0m' # green
-                else:
-                    print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[31m'+repr(result)+' \x1b[32m['+repr(correct)+']\x1b[0m'
+            if success:
+                passed_count += 1
+                log += '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[32m'+repr(result)+'\x1b[0m\n' # green
+            else:
+                failed.append(i)
+                log += '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[31m'+repr(result)+' \x1b[32m['+repr(correct)+']\x1b[0m\n'
         except Exception as e:
+            errored.append(i)
             # '\x1b' == 0x1B == 27 == ESC
             err_msg = traceback.format_exc()[:-1] # trim trailing newline
-            print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[41;91m[ERROR]\x1b[0m \x1b[32m['+repr(correct)+']\n\x1b[31m'+err_msg+'\x1b[0m'
+            log += '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[41;91m[ERROR]\x1b[0m \x1b[32m['+repr(correct)+']\n\x1b[31m'+err_msg+'\x1b[0m\n'
+        if len(log) > 0 and (log_on_success and success or not success): print log[:-1]
+    print "Passed:", passed_count, "of", len(tests)
+    if len(failed) > 0: print "Failed:", repr(failed)
+    if len(errored) > 0: print "Errored:", repr(errored)
 
-test(print_input=True, print_success=True)
+test(print_input=True, log_on_success=False, visualize=True)
