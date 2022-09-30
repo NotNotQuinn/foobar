@@ -26,16 +26,23 @@ def remove_gcf_arr(arr):
         return arr
     return [x // gcf for x in arr]
 
+
+def solution(dimensions, your_position, trainer_position, max_distance):
+    # There is no performance benefit to calculating the count without calculating each individual angle, as each angle has to be unique.
+    # At least not in the method I am using. So, len() of all vector bearing tuples (x,y) is the most performant option.
+    count = len(get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance))
+    return count
+
+
 # Given x,y sized room with mirror walls, pos1 (x1, y1), pos2 (x2, y2) and distance d:
 #   Calculate the number of unique directions a laser can be fired from pos1 to hit
 #   pos2 without traveling further than the distance d and not hitting pos1.
 #   Visual example of test case #0: https://i.imgur.com/dZbCdUo.png
 # Important tasks:
-#   Corner detection (corner = hit self or expire, therefor it is no match)
-#   Intersection detection
-#   Reverse bounce simulation to determine all paths that may lead to intersections.
-#   + more
-def solution(dimensions, your_position, trainer_position, max_distance):
+#   Detecting a hit of ourselves, including corners detection.
+#   Reverse bounce calculation to determine all paths that may lead to intersections.
+# Returns a set() of all vector bearing tuples (x,y) in the lowest form. (i.e. (-4, 6) -> (-2, 3))
+def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance):
     x_dim, y_dim = dimensions
     x_self, y_self = your_position
     x_target, y_target = trainer_position
@@ -50,48 +57,102 @@ def solution(dimensions, your_position, trainer_position, max_distance):
     print "solution(", repr(([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance))[1:-1] + " )"
 
     if x_dim < 100:
-        visualize_room([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance)
+        # TODO: Refactor visualize_solution_ascii to return a string.
+        visualize_solution_ascii([x_dim, y_dim], [x_self, y_self], [x_target, y_target], max_distance)
     else:
         print "Visualization skipped due to size of room. (x dimension >= 100)"
 
-    solutions = []
+    good_slopes = set()
     max_distance_squared = max_distance**2
     for i in range(-10, 10):
+        x = bounce_count_to_distance_1d(x_dim, x_self, x_target, i)
+        x_squared = x**2
+        if x_squared > max_distance_squared:
+            # Too long, the laser dies out
+            continue
         for j in range(-10, 10):
-            x = bounce_count_to_distance_1d(x_dim, x_self, x_target, i)
             y = bounce_count_to_distance_1d(y_dim, y_self, y_target, j)
-            if x**2 + y**2 <= max_distance_squared:
-                solutions.append((bounce_count_to_distance_1d(x_dim, x_self, x_target, i), bounce_count_to_distance_1d(y_dim, y_self, y_target, j)))
+            y_squared = y**2
+            if x_squared + y_squared > max_distance_squared:
+                # Too long, the laser dies out
+                continue
+            if y_squared == 0 and ((x_self < x_target and x < 0) or (x_self > x_target and x > 0)):
+                # Hits the left or right wall and bounce straight back, killing us instantly!: |<->@   &   | or |   &   @<->|
+                continue
+            if x_squared == 0 and ((y_self < y_target and y < 0) or (y_self > y_target and y > 0)):
+                # Hits the top or bottom wall, and then us. Dead.: |<->@   &   | or |   &   @<->| (but vertically)
+                continue
+            gcf = abs(fractions.gcd(x, y))
+            good_slopes.add((x//gcf, y//gcf))
 
-    print solutions
-    print set([tuple(remove_gcf_arr(s)) for s in solutions])
+    # And now, calculate slopes that could be generated but should be removed.
+    # The only types of slopes that fit this description are ones that hit the corner by traveling along the diagonal.
+    # These lines would be where, using y = m*x+b: abs(m) == y_dim/x_dim.
+    # Since we known abs(m), all we need to do is check if we are on one of the diagonals,
+    # and calculate is the sign of x and y (for the bad slope).
+    abs_m = y_dim/x_dim
+    on_diagonal = False
+    for b in (0, y_dim):
+        if on_diagonal:
+            break
+        # Formula for m: m=(y-b)/x
+        on_diagonal = abs((y_self-b)/x_self) == abs_m and abs((y_target-b)/x_target) == abs_m
+    if on_diagonal:
+        dimensions_gcf = abs(fractions.gcd(x_dim, y_dim))
+        bad_slope_x, bad_slope_y = x_dim // dimensions_gcf, y_dim // dimensions_gcf
+
+        # Calculate the sign for x and y using non-branching logic.
+        invert_x_and_y = 1 - int(y_self > y_target)*2  # 1 if false, -1 if true
+        invert_y = 1 - int(x_self < x_target)*2  # 1 if false, -1 if true
+
+        bad_slope_x *= invert_x_and_y
+        bad_slope_y *= invert_x_and_y*invert_y
+
+        good_slopes.discard((bad_slope_x, bad_slope_y))  # Removes the slope if present
+
+        # The above code does the same as this logic, but without branches (better performance):
+        #   if x_self < x_target:  # Invert y
+        #       if y_self > y_target:  # Invert x and y
+        #           good_slopes.discard((-bad_slope_x, bad_slope_y))
+        #       else:
+        #           good_slopes.discard((bad_slope_x, -bad_slope_y))
+        #   else:  # Don't invert y
+        #       if y_self > y_target:  # Invert x and y
+        #           good_slopes.discard((-bad_slope_x, -bad_slope_y))
+        #       else:
+        #           good_slopes.discard((bad_slope_x, bad_slope_y))
+
+    return good_slopes
 
 
 # Calculates how far an entity (ball, laser, etc) will travel when starting at start_point
 # bouncing within the room bounce_count number of times, and finishing at end_point,
-# assuming all movement is linear.
+# assuming all movement is linear through one dimension.
+# The sign of the bounce_count denotes the initial direction of travel for the entity,
+# and the sign of the result will be the same as the sign of the bounce_count.
 def bounce_count_to_distance_1d(bounding_room_length, start_point, end_point, bounce_count):
     # Information used to derive formula, where
     #       y_dim = bounding_room_length,
     #       y_target = end_point,
     #       y_self = start_point:
-    # -y_dim*6 + y_target - y_self  # -6 bounces (\/\/\/\ shaped)
-    # -y_dim*4 - y_target - y_self  # -5 bounces (\/\/\/ shaped)
-    # -y_dim*4 + y_target - y_self  # -4 bounces (\/\/\ shaped)
-    # -y_dim*2 - y_target - y_self  # -3 bounces (\/\/ shaped)
-    # -y_dim*2 + y_target - y_self  # -2 bounces (\/\ shaped)
-    # -y_dim*0 - y_target - y_self  # -1 bounce  (\/ shaped)
-    #  y_dim*0 + y_target - y_self  #  0 bounces (\ shaped)
-    #  y_dim*2 - y_target - y_self  #  1 bounce  (/\ shaped)
-    #  y_dim*2 + y_target - y_self  #  2 bounces (/\/ shaped)
-    #  y_dim*4 - y_target - y_self  #  3 bounces (/\/\ shaped)
-    #  y_dim*4 + y_target - y_self  #  4 bounces (/\/\/ shaped)
-    #  y_dim*6 - y_target - y_self  #  5 bounces (/\/\/\ shaped)
-    #  y_dim*6 + y_target - y_self  #  6 bounces (/\/\/\/ shaped)
+    # Each equation below is the proper calculation for the distance in 1d.
+    # -6*y_dim - y_target - y_self  # -6 bounces (\/\/\/\ shaped)
+    # -6*y_dim + y_target - y_self  # -5 bounces (\/\/\/ shaped)
+    # -4*y_dim - y_target - y_self  # -4 bounces (\/\/\ shaped)
+    # -4*y_dim + y_target - y_self  # -3 bounces (\/\/ shaped)
+    # -2*y_dim - y_target - y_self  # -2 bounces (\/\ shaped)
+    # -2*y_dim + y_target - y_self  # -1 bounce  (\/ shaped)
+    #  0*y_dim - y_target - y_self  #  0 bounces (\ shaped)
+    #  0*y_dim + y_target - y_self  #  1 bounce  (/\ shaped)
+    #  2*y_dim - y_target - y_self  #  2 bounces (/\/ shaped)
+    #  2*y_dim + y_target - y_self  #  3 bounces (/\/\ shaped)
+    #  4*y_dim - y_target - y_self  #  4 bounces (/\/\/ shaped)
+    #  4*y_dim + y_target - y_self  #  5 bounces (/\/\/\ shaped)
+    #  6*y_dim - y_target - y_self  #  6 bounces (/\/\/\/ shaped)
 
-    coefficient = math.trunc(float(bounce_count+1)/2)*2
-    return bounding_room_length*coefficient + (1 if bounce_count%2 == 0 else -1)*end_point - start_point
-
+    coefficient = (bounce_count//2)*2  # round towards -Infinity into an even number, 3 -> 2, -1 -> -2
+    sign = -1 + (bounce_count%2)*2  # -1 if bounce_count is even, 1 if it is odd.
+    return coefficient*bounding_room_length + sign*end_point - start_point
 
 
 # Prints an ASCII representation of the room (without simplifying) to standard output.
@@ -105,7 +166,7 @@ def bounce_count_to_distance_1d(bounding_room_length, start_point, end_point, bo
 #   1 |-@-&-|
 #   0 %=+=+=%
 #     0 1 2 3
-def visualize_room(dimensions, your_position, trainer_position, max_distance):
+def visualize_solution_ascii(dimensions, your_position, trainer_position, max_distance):
     x_dim, y_dim = dimensions
     x_self, y_self = your_position
     x_target, y_target = trainer_position
@@ -156,7 +217,12 @@ def visualize_room(dimensions, your_position, trainer_position, max_distance):
         print
 
 
-
+# Visualizes the solution using an image
+def visualize_solution_image():
+    # TODO: Implement; possibly using turtle or tkinter.
+    # turtle would be easiest, so long as you can control the start position
+    # UPDATE: Yes, you can control it by turning off the pen and moving to the desired position.
+    pass
 
 ##################################################
 # vvvvvvv  TESTING FRAMEWORK COPY-PASTE  vvvvvvv #
@@ -164,27 +230,33 @@ def visualize_room(dimensions, your_position, trainer_position, max_distance):
 import traceback
 
 def test(print_success=True, print_input=False):
-    # Format: (input, correct_output)
+    # Format: (input_arguments, correct_output)
     # Input: (dimensions, your_position, trainer_position, distance)
 
     tests = {
         # Given 100% known:
         0: (([3,2], [1,1], [2,1], 4), 7),
-        1: (([300,275], [150,150], [185,100], 500), 9)
+        1: (([300,275], [150,150], [185,100], 500), 9),
+        # Hand-Calculated:
+        2: (([3, 3], [1, 1], [2, 2], 5), 7),
+        3: (([3, 3], [2, 2], [1, 1], 5), 7),
+        4: (([3, 3], [2, 1], [1, 2], 5), 7),
+        5: (([3, 3], [1, 2], [2, 1], 5), 7),
     }
 
     for i in tests:
-        (case, correct) = tests[i]
-        if print_input: print '(#'+str(i).zfill(3)+') RUNNING: solution( '+repr(case)[1:-1]+' )'
+        (arguments, correct) = tests[i]
+        if print_input: print '(#'+str(i).zfill(3)+') RUNNING: solution( '+repr(arguments)[1:-1]+' )'
         success = False
 
         try:
-            r = solution(case[0], case[1], case[2], case[3])
-            success = r == correct
-            if success:
-                if not success or (success and print_success): print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[32m'+repr(r)+'\x1b[0m' # green
-            else:
-                if not success or (success and print_success): print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[31m'+repr(r)+' \x1b[32m['+repr(correct)+']\x1b[0m'
+            result = solution(*arguments)
+            success = result == correct
+            if not success or (success and print_success):
+                if success:
+                    print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[32m'+repr(result)+'\x1b[0m' # green
+                else:
+                    print '(#'+str(i).zfill(3)+') solution( ... ) == \x1b[31m'+repr(result)+' \x1b[32m['+repr(correct)+']\x1b[0m'
         except Exception as e:
             # '\x1b' == 0x1B == 27 == ESC
             err_msg = traceback.format_exc()[:-1] # trim trailing newline
