@@ -1,0 +1,10 @@
+Answer to test #1: 7
+Answer to test #2: 9
+Answer to test #4: 0
+Answer to test #3: ????????????????????
+Answer to test #5: 1
+Answer to test #6: 17
+Answer to test #7: 12
+Answer to test #8: 338
+Answer to test #9: 911
+Answer to test #10: 344

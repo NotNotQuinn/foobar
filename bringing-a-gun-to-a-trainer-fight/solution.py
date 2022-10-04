@@ -13,24 +13,13 @@ def gcf_arr(arr, i=0):
         # This is the last and only number, therefor it is the gcf of itself.
         return arr[i]
 
-    a = arr[i]
-    b = gcf_arr(arr, i+1)
-
-    return fractions.gcd(a, b)
-
-# Remove greatest common factor from an array of numbers.
-# Returns the array with each number divided by gcf.
-def remove_gcf_arr(arr):
-    gcf = abs(gcf_arr(arr))
-    if gcf == 1:
-        return arr
-    return [x // gcf for x in arr]
+    return fractions.gcd(arr[i], gcf_arr(arr, i+1))
 
 
 def solution(dimensions, your_position, trainer_position, max_distance):
     # There is no performance benefit to calculating the count without calculating each individual angle, as each angle has to be unique.
     # At least not in the method I am using. So, len() of all vector bearing tuples (x,y) is the most performant option.
-    count = len(get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance))
+    count = len(get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance, simplify=True))
     return count
 
 
@@ -42,7 +31,7 @@ def solution(dimensions, your_position, trainer_position, max_distance):
 #   Detecting a hit of ourselves, including corners detection.
 #   Reverse bounce calculation to determine all paths that may lead to intersections.
 # Returns a set() of all vector bearing tuples (x,y) in the lowest form. (i.e. (-4, 6) -> (-2, 3))
-def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance):
+def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance, simplify=True):
     x_dim, y_dim = dimensions
     x_self, y_self = your_position
     x_target, y_target = trainer_position
@@ -51,15 +40,17 @@ def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max
     gcf = gcf_arr([x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance])
     if gcf > 1: x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance = (n // gcf for n in (x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance))
 
+    unique_slopes = set()
     good_slopes = set()
+    max_bounce_count = calculate_max_bounce_count_2d(x_dim, y_dim, x_self, y_self, max_distance)
     max_distance_squared = max_distance**2
-    for i in range(-10, 10):
+    for i in range(-max_bounce_count, max_bounce_count):
         x = bounce_count_to_distance_1d(x_dim, x_self, x_target, i)
-        x_squared = x**2
-        if x_squared > max_distance_squared:
+        if x > max_distance:
             # Too long, the laser dies out
             continue
-        for j in range(-10, 10):
+        x_squared = x**2
+        for j in range(-max_bounce_count, max_bounce_count):
             y = bounce_count_to_distance_1d(y_dim, y_self, y_target, j)
             y_squared = y**2
             if x_squared + y_squared > max_distance_squared:
@@ -72,7 +63,10 @@ def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max
                 # Hits the top or bottom wall, and then us. Dead.: |<->@   &   | or |   &   @<->| (but vertically)
                 continue
             gcf = abs(fractions.gcd(x, y))
-            good_slopes.add((x//gcf, y//gcf))
+            minimal_slope = (x//gcf, y//gcf)
+            if minimal_slope not in unique_slopes and not simplify:
+                good_slopes.add((x, y))
+            unique_slopes.add(minimal_slope)
 
     # And now, calculate slopes that could be generated but should be removed.
     # The only types of slopes that fit this description are ones that hit the corner by traveling along the diagonal.
@@ -91,27 +85,26 @@ def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max
         bad_slope_x, bad_slope_y = x_dim // dimensions_gcf, y_dim // dimensions_gcf
 
         # Calculate the sign for x and y using non-branching logic.
-        invert_x_and_y = 1 - int(y_self > y_target)*2  # 1 if false, -1 if true
-        invert_y = 1 - int(x_self < x_target)*2  # 1 if false, -1 if true
+        x_sign = 1 - int(x_self < x_target)*2
+        y_sign = 1 - int(y_self < y_target)*2
 
-        bad_slope_x *= invert_x_and_y
-        bad_slope_y *= invert_x_and_y*invert_y
+        bad_slope = (bad_slope_x*x_sign, bad_slope_y*y_sign)
+        if bad_slope in unique_slopes and not simplify:
+            remove = None
+            for good_slope in good_slopes:
+                gcf = abs(fractions.gcd(*good_slope))
+                if good_slope[0]//gcf == bad_slope[0] and good_slope[1]//gcf == bad_slope[1]:
+                    # Is not a good slope.
+                    remove = good_slope
+            if remove is not None:
+                good_slopes.remove(remove)
 
-        good_slopes.discard((bad_slope_x, bad_slope_y))  # Removes the slope if present
+        unique_slopes.discard(bad_slope)  # Removes the slope if present
 
-        # The above code does the same as this logic, but without branches (better performance):
-        #   if x_self < x_target:  # Invert y
-        #       if y_self > y_target:  # Invert x and y
-        #           good_slopes.discard((-bad_slope_x, bad_slope_y))
-        #       else:
-        #           good_slopes.discard((bad_slope_x, -bad_slope_y))
-        #   else:  # Don't invert y
-        #       if y_self > y_target:  # Invert x and y
-        #           good_slopes.discard((-bad_slope_x, -bad_slope_y))
-        #       else:
-        #           good_slopes.discard((bad_slope_x, bad_slope_y))
-
-    return good_slopes
+    if simplify:
+        return unique_slopes
+    else:
+        return good_slopes
 
 
 # Calculates how far an entity (ball, laser, etc) will travel when starting at start_point
@@ -142,6 +135,31 @@ def bounce_count_to_distance_1d(bounding_room_length, start_point, end_point, bo
     coefficient = (bounce_count//2)*2  # round towards -Infinity into an even number, 3 -> 2, -1 -> -2
     sign = -1 + (bounce_count%2)*2  # -1 if bounce_count is even, 1 if it is odd.
     return coefficient*bounding_room_length + sign*end_point - start_point
+
+
+# Given room dimensions, a start position and a max distance traveled, returns a number
+# guaranteed to be greater than or equal to the max number of bounces.
+def calculate_max_bounce_count_2d(dimension_x, dimension_y, start_x, start_y, max_distance):
+    # Calculate both dimensions
+    x_max = calculate_max_bounce_count_1d(dimension_x, start_x, max_distance)
+    y_max = calculate_max_bounce_count_1d(dimension_y, start_y, max_distance)
+    # This will be more than the actual maximum, but it is guaranteed to be at least that much.
+    return x_max + y_max
+
+
+def calculate_max_bounce_count_1d(dimension_size, start_pos, max_dist):
+    # Use the initial direction that is closest to the wall.
+    if dimension_size/2 < start_pos:
+        dist = max_dist - (dimension_size - start_pos)
+    else:
+        dist = max_dist - start_pos
+    # Already calculated the distance of one bounce.
+    bounces = 1
+    # Calculate bounces until we have surpassed the max distance.
+    while dist >= 0:
+        dist -= dimension_size
+        bounces += 1
+    return bounces
 
 
 # Returns an ASCII representation of the room (after simplifying).
@@ -216,50 +234,46 @@ def visualize_solution_ascii(dimensions, your_position, trainer_position, max_di
     output += '\n'
     return output
 
+import turtle
 
-# Visualizes the solution using the turtle library
+# Visualizes the solution using the turtle library.
+# This visualization is incomplete and only shows the directions of vectors, and not their entire paths.
 def visualize_solution_turtle(dimensions, your_position, trainer_position, max_distance):
     x_dim, y_dim = dimensions
     x_self, y_self = your_position
     x_target, y_target = trainer_position
+
+    solutions = get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance, simplify=False)
 
     # Simplification:
     gcf = gcf_arr([x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance])
     if gcf > 1:
         x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance = (n // gcf for n in (x_dim, y_dim, x_self, y_self, x_target, y_target, max_distance))
 
-    solutions = get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance)
-    px = 50  # Pixel size
-
-    import turtle
-
-    def turtle_goto(x, y):
-        turtle.reset()
-        turtle.penup()
-        turtle.left(180)
-        turtle.fd(x*px/2)
-        turtle.right(90)
-        turtle.fd(y*px/2)
-        turtle.right(90) # to do full 360 degrees
-        turtle.pendown()
-
+    print len(solutions)
+    px = 20 # Grid square size in pixels
+    laser_pensize = 1  # Line width of laser lines
+    grid_pensize = 1  # Line width of grid lines
 
     # Turtle resetting and managing state:
     turtle.clear()
-    # turtle.hideturtle()
-    turtle.screensize(bg="#000") # Doesn't work?
-    turtle.title("solution"+repr((dimensions, your_position, trainer_position, max_distance))+" == "+str(len(solutions)))
+    turtle.hideturtle()
+    turtle.screensize(bg="#000")
+    turtle.title("solution"+repr((dimensions, your_position, trainer_position, max_distance))+" == 0/"+str(len(solutions)))
     turtle.bgcolor("#000") # black
     turtle.pencolor("#FFF") # white
     turtle.speed(0) # instant
+    turtle.pensize(grid_pensize)
+
+    # Move to a point x,y on the grid
+    def grid_goto(x, y):
+        turtle.penup()
+        turtle.goto(-x_dim*px/2 + x*px, -y_dim*px/2 + y*px)
+        turtle.pendown()
 
     # Moving to initial position (top left of visualization):
     turtle.penup()
-    turtle.left(180)
-    turtle.fd(x_dim*px/2)
-    turtle.right(90)
-    turtle.fd(y_dim*px/2)
-    turtle.right(90) # to do full 360 degrees
+    turtle.goto(-x_dim*px/2, y_dim*px/2)
     turtle.pendown()
 
     # Drawing grid:
@@ -302,10 +316,87 @@ def visualize_solution_turtle(dimensions, your_position, trainer_position, max_d
             turtle.fd(px)
             turtle.left(90)
     # Current position: bottom left of visualization (0, 0), facing right
-    # Now draw ourselves (green) and the target (red)
-    angle, distance = vector_bearing_to_vector(x_self,y_self)
-    turtle.left(angle)
-    turtle.fd(distance*px)
+    # Draw self:
+    grid_goto(x_self, y_self)
+    turtle.dot(px/2, "green")
+    # Draw target:
+    grid_goto(x_target, y_target)
+    turtle.dot(px/2, "red")
+
+    # Change pensize to the size for lines
+    turtle.pensize(laser_pensize)
+
+    colors = ["#9400D3", "#4B0082", "#0000FF", "#00FF00", "#00FFFF", "#FFFF00", "#FF7F00", "#FF0000"]
+
+    # Draw all solution lines.
+    i = 0
+    for (dx, dy) in solutions:
+        turtle.title("solution"+repr((dimensions, your_position, trainer_position, max_distance))+" == "+str(i+1)+"/"+str(len(solutions)))
+        grid_goto(x_self, y_self)
+        turtle.right(turtle.heading()) # Face to the right
+        turtle.color(colors[i%len(colors)])
+        i += 1
+
+        _, distance_remaining = vector_bearing_to_vector(dx, dy)
+        distance_remaining = abs(distance_remaining)
+        x_current = x_self
+        y_current = y_self
+        while distance_remaining > 0:
+            # The furthest in each direction
+            if dx > 0:
+                max_dx = x_dim - x_current
+            else:
+                max_dx = -x_current
+            if dy > 0:
+                max_dy = y_dim - y_current
+            else:
+                max_dy = -y_current
+
+            if dx == 0:
+                # It's a straight line, gg
+                turtle.fd(dy*px)
+                distance_remaining -= abs(dy)
+                continue
+            if dy == 0:
+                # gg
+                turtle.fd(dx*px)
+                distance_remaining -= abs(dx)
+                continue
+
+            # The ratio of max_d(x|y) to d(x|y). (ex: 0.5 means max_dx is half of dx, and 2 means max_dx is twice dx)
+            x_ratio = max_dx / float(dx)
+            y_ratio = max_dy / float(dy)
+
+            # The minimum ratio is the direction that is reflected.
+            if x_ratio < y_ratio:
+                # Hits a vertical wall, x direction is reflected.
+                ratio = x_ratio
+            else:
+                # Hits a horizontal wall, y direction is reflected.
+                ratio = y_ratio
+
+            # If all ratios are above 1, that means the laser never hits the wall.
+            if ratio > 1:
+                ratio = 1
+
+
+            angle, dist = vector_bearing_to_vector(dx, dy)
+            turtle.right(turtle.heading()) # Face to the right
+            turtle.left(angle)
+            if distance_remaining - abs(dist*ratio) > 0:
+                turtle.fd(dist*ratio*px)
+            else:
+                turtle.fd(math.copysign(distance_remaining*px, dist))
+            distance_remaining -= abs(dist*ratio)
+            x_current += dx*ratio
+            y_current += dy*ratio
+
+            if x_ratio < y_ratio:
+                # Intersects with a horizontal line
+                dx *= -1
+            else:
+                # Intersects with a vertical line
+                dy *= -1
 
     # Wait for window to close:
     turtle.exitonclick()
@@ -313,14 +404,17 @@ def visualize_solution_turtle(dimensions, your_position, trainer_position, max_d
 # Returns (angle, distance)
 def vector_bearing_to_vector(x, y):
     # cos(x) = adjacent/hypotenuse
-
+    # x = inverse cos(adjacent/hypotenuse)
     distance = math.hypot(x, y)
+    if y < 0:
+        distance *= -1
     radians = math.acos(x/distance)
     return ((radians*180)/math.pi, distance)
 
 ##################################################
 # vvvvvvv  TESTING FRAMEWORK COPY-PASTE  vvvvvvv #
 ##################################################
+import traceback
 
 # Tests the current solution.
 # Possible values for visualize= are:
@@ -331,21 +425,29 @@ def vector_bearing_to_vector(x, y):
 #       open a window and show a graphical representation of the solution
 #       n == the test case to visualize
 def test(log_on_success=True, print_input=False, visualize=None):
-    import traceback
-
     # Format: (input_arguments, correct_output)
     # Input: (dimensions, your_position, trainer_position, distance)
 
     tests = {
         # Given 100% known:
-        0: (([3,2], [1,1], [2,1], 4), 7),
-        1: (([300,275], [150,150], [185,100], 500), 9),
+        1: (([3,2], [1,1], [2,1], 4), 7), # Test case #1
+        2: (([300,275], [150,150], [185,100], 500), 9), # Test case #2
+        4: (([10, 2], [1, 1], [9, 1], 7), 0), # Test case #4
+        5: (([1000, 1000], [250, 25], [257, 49], 25), 1), # Test case #5
+        6: (([900, 700], [853, 172], [75, 600], 2000), 17), # Test case #6
         # Hand-Calculated:
-        2: (([3, 3], [1, 1], [2, 2], 5), 7),
-        3: (([3, 3], [2, 2], [1, 1], 5), 7),
-        4: (([3, 3], [2, 1], [1, 2], 5), 7),
-        5: (([3, 3], [1, 2], [2, 1], 5), 7),
+        11: (([3, 3], [1, 1], [2, 2], 5), 7),
+        12: (([3, 3], [2, 2], [1, 1], 5), 7),
+        13: (([3, 3], [2, 1], [1, 2], 5), 7),
+        14: (([3, 3], [1, 2], [2, 1], 5), 7),
+        15: (([100, 100], [1,1], [2,1], 10000), 31083)
     }
+
+    # for i in range(20):
+    #     i += 6
+    #     for j in range(20):
+    #         j += 6
+    #         tests[i+j] = (([i, j], [i-1, j-1], [i/2, j/2], j/2+i/2), -1)
 
     passed_count = 0
     failed = []
@@ -383,4 +485,27 @@ def test(log_on_success=True, print_input=False, visualize=None):
     if len(failed) > 0: print "Failed:", repr(failed)
     if len(errored) > 0: print "Errored:", repr(errored)
 
-test(print_input=True, log_on_success=False, visualize=("turtle", 0))
+# test(print_input=True, log_on_success=False, visualize=("turtle", 1))
+
+
+
+
+"""Notes!
+
+I've got options.
+1) continue and attempt to solve the problem using python
+2) assume the problem is performance related (which there is counter-evidence to; but no forward-evidence) and re-implement in Java.
+3) (impossible) Brute force MORE (I've already brute forced over 5400 answers starting from 0)
+    -> solution values may be up to any value that can be calculated within ~6 seconds; 345k+ == 4.7 seconds
+    -> After knowing the result for #3, find the input values (easy) and then reverse engineer the problem from there.
+4) Timing attack:
+    -> Since I know the answers already for all except #3, I can get info about the input && add specific code to ignore those solutions
+    -> Then, once test case #3 is isolated: check a single condition at a time, and get the answer based on if it was fast, or took 20s.
+"""
+
+code = """
+case = ([3, 2], [1, 1], [2, 1], 10000)
+print solution(*case)
+"""
+import profile
+profile.run(code)
