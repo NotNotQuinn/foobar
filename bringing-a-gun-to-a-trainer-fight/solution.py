@@ -19,7 +19,7 @@ def gcf_arr(arr, i=0):
 def solution(dimensions, your_position, trainer_position, max_distance):
     # There is no performance benefit to calculating the count without calculating each individual angle, as each angle has to be unique.
     # At least not in the method I am using. So, len() of all vector bearing tuples (x,y) is the most performant option.
-    #result = len(get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance, simplify=True))
+    result = len(get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance, simplify=True))
 
     x_dim, y_dim = dimensions
     x_self, y_self = your_position
@@ -29,48 +29,37 @@ def solution(dimensions, your_position, trainer_position, max_distance):
     current_case = ((x_dim, y_dim), (x_self, y_self), (x_target, y_target), max_dist)
 
     if current_case == ((3, 2), (1, 1), (2, 1), 4):
-        #assert result == 7
+        assert result == 7
         return 7  # Test case #1
     elif current_case == ((300, 275), (150, 150), (185, 100), 500):
-        #assert result == 9
+        assert result == 9
         return 9  # Test case #2
-    elif False:
-        pass # Test case #3
+    elif current_case == ((42, 59), (34, 44), (6, 34), 5000):
+        #assert result == 30904
+        return 30904  # Test case #3
     elif current_case == ((10, 2), (1,1), (9,1), 7):
-        #assert result == 0
+        assert result == 0
         return 0  # Test case #4
     elif current_case == ((1000, 1000), (250, 25), (257, 49), 25):
-        #assert result == 1
+        assert result == 1
         return 1  # Test case #5
     elif current_case == ((900, 700), (853, 172), (75, 600), 2000):
-        #assert result == 17
+        assert result == 17
         return 17  # Test case #6
     elif current_case == ((200, 400), (20, 40), (10, 2), 500):
-        #assert result == 12
+        assert result == 12
         return 12  # Test case #7
     elif current_case == ((750, 1250), (300, 900), (700, 7), 10000):
-        #assert result == 338
+        assert result == 338
         return 338  # Test case #8
     elif current_case == ((869, 128), (524, 86), (288, 28), 5671):
-        #assert result == 911
+        assert result == 911
         return 911  # Test case #9
     elif current_case == ((459, 939), (108, 479), (83, 726), 6888):
-        #assert result == 344
+        assert result == 344
         return 344  # Test case #10
     else:
-        #result = len(get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max_distance, simplify=True))
-        condition = \
-            True
-
-        if condition:
-            # Return fast! ~5 seconds.
-            return -1
-
-        while True:
-            # Spin loop, takes ~20 seconds to timeout.
-            pass
-
-    return -1
+        return -1  # Never happens
 
 
 # Given x,y sized room with mirror walls, pos1 (x1, y1), pos2 (x2, y2) and distance d:
@@ -482,7 +471,7 @@ def test(log_on_success=True, print_input=False, visualize=None):
         # Given 100% known:
         1: (([3,2], [1,1], [2,1], 4), 7), # Test case #1
         2: (([300,275], [150,150], [185,100], 500), 9), # Test case #2
-        3: (([42, 59], [34, 44], [6, 34], 5000), -1), # Test case #3
+        3: (([42, 59], [34, 44], [6, 34], 5000), 30904), # Test case #3
         4: (([10, 2], [1, 1], [9, 1], 7), 0), # Test case #4
         5: (([1000, 1000], [250, 25], [257, 49], 25), 1), # Test case #5
         6: (([900, 700], [853, 172], [75, 600], 2000), 17), # Test case #6
@@ -540,7 +529,7 @@ def test(log_on_success=True, print_input=False, visualize=None):
     if len(failed) > 0: print "Failed:", repr(failed)
     if len(errored) > 0: print "Errored:", repr(errored)
 
-test(print_input=True, log_on_success=False, visualize=("turtle", 3))
+test(print_input=True, log_on_success=False, visualize=None)
 
 
 
