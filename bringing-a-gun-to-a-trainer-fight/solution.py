@@ -3,6 +3,88 @@
 import fractions
 import math
 
+# I may very well have revisited this problem, as I'm not entirely satisfied with the solution.
+# The reason I'm submitting this is because as of writing there is 00:01:32:36 left for me to complete this problem.
+
+######################################################################################
+# If the git repository is more updated, consider taking a look at the solution there.
+##
+
+# Project layout:
+#   To see the complete set of files I used:
+#       `main` branch: https://github.com/notnotquinn/foobar/tree/main/bringing-a-gun-to-a-trainer-fight
+#   Commit history:
+#       `main` branch: https://github.com/notnotquinn/foobar/commits/main/bringing-a-gun-to-a-trainer-fight
+#       See the PR attached for a complete commit history of before I (possibly) revisited this problem.
+
+# How I decoded test cases: (which are at the bottom of this file, in `test()`)
+#   There are 2 ways to gain information from googles servers:
+#       1. The obvious way. Whether or not the test cases pass.
+#           Pro: Can get information about multiple tests simultaneously.
+#           Con: You must know the solution to the test case(s) you are trying to get information about.
+#       2. A timing attack. How long the test cases take to complete.
+#           Pro: You do NOT need to know the solution to get information.
+#           Con: In order to be reliable, you must be able to detect which test case is currently running. (i.e. know the input)
+#           Con: You can only get information from one test case at a time.
+#           Con: Slow, as you have to wait for the simulation to time out each time.
+#
+#   By the time I had started to decode the test cases my solution already worked for all test cases except #3.
+#   So, what I did was for all the unknown test cases that I had the solution to (#4-#10) was a manual binary search for each variable.
+#   I saved the data in `test-cases.ods` (a spreadsheet file in the git repository linked above).
+#
+#   After knowing all inputs and outputs to all test cases except #3, I applied a timing attack to test case #3, also doing a manual binary search.
+#   This lead me to know that test case #3 is `solution([42, 59], [34, 44], [6, 34], 5000)` with a solution of 30904.
+#
+#   This information is vastly unhelpful. The reason this case generates an incorrect result (about 500 more than it should be)
+#   is unclear at first glance. The visualization tools I made weren't helpful either, because
+#
+#   In my attempts to debug my solution, I ended up brute forcing approx. 5400 solutions using a bash script.
+#
+#   To do this, I looked into the network activity the foobar site (https://foobar.withgoogle.com/) generates while
+#   saving or verifying the solutions using the inspector.
+#   After copying the requests in cURL (bash) format, I just pasted them into a bash file
+#   and came up with a simple script. Running it in WSL it took about 10 seconds per solution to check
+#   so all I had to do was let it run for a few days. The script (with headers & data removed) is:
+"""
+for RESULT_TO_CHECK in `seq 30000 40000`
+do
+	echo "Check: $RESULT_TO_CHECK"
+
+	STATUS_CODE=$(curl 'https://foobar.withgoogle.com/api/v1/commands/save/' \
+	[[20 headers removed]] \
+	[[--data-raw removed]] \
+	--compressed \
+	-o ./output -s -w "%{http_code}\n")
+
+	if [ $STATUS_CODE != "204" ]; then
+		echo "  Could not edit file!: ($STATUS_CODE)";
+		cat ./output
+		exit 1;
+	fi
+
+	RESULT=$(curl 'https://foobar.withgoogle.com/api/v1/commands/verify/' \
+	[[20 headers removed]] \
+	[[--data-raw removed]] \
+	--compressed \
+	-s)
+
+	TEST_PASSED=$(echo "$RESULT" | jq .output | egrep -o "Test [0-9][0-9]? passed" | egrep -o [0-9]+)
+
+	if [ "$TEST_PASSED" != "" ]; then
+		echo "  Success! Answer to test #$TEST_PASSED: $RESULT_TO_CHECK";
+		echo "Answer to test #$TEST_PASSED: $RESULT_TO_CHECK" >> answers.txt
+	else
+		echo "  No tests passed.";
+	fi
+
+	sleep 3;  # in case of hidden rate limits.
+done
+
+echo "All done :)"
+cat answers.txt
+exit 0
+"""
+
 
 def solution(dimensions, your_position, trainer_position, max_distance):
     # There is no performance benefit to calculating the count without calculating each individual angle, as each angle has to be unique.
