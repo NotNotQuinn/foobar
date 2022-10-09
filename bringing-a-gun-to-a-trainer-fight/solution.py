@@ -3,18 +3,6 @@
 import fractions
 import math
 
-# https://www.geeksforgeeks.org/gcd-two-array-numbers/
-# With comments added
-def gcf_arr(arr, i=0):
-    # Finds the gcf of numbers in arr starting with i.
-    # Axiom: gcf(a, b, c, d, ...) = gcf(a, gcf(b, gcf(c, gcf(d, ...))))
-
-    if i == len(arr)-1:
-        # This is the last and only number, therefor it is the gcf of itself.
-        return arr[i]
-
-    return fractions.gcd(arr[i], gcf_arr(arr, i+1))
-
 
 def solution(dimensions, your_position, trainer_position, max_distance):
     # There is no performance benefit to calculating the count without calculating each individual angle, as each angle has to be unique.
@@ -173,6 +161,19 @@ def get_laser_hit_directions_2d(dimensions, your_position, trainer_position, max
         return good_slopes
 
 
+# https://www.geeksforgeeks.org/gcd-two-array-numbers/
+# With comments added
+def gcf_arr(arr, i=0):
+    # Finds the gcf of numbers in arr starting with i.
+    # Axiom: gcf(a, b, c, d, ...) = gcf(a, gcf(b, gcf(c, gcf(d, ...))))
+
+    if i == len(arr)-1:
+        # This is the last and only number, therefor it is the gcf of itself.
+        return arr[i]
+
+    return fractions.gcd(arr[i], gcf_arr(arr, i+1))
+
+
 # Calculates how far an entity (ball, laser, etc) will travel when starting at start_point
 # bouncing within the room bounce_count number of times, and finishing at end_point,
 # assuming all movement is linear through one dimension.
@@ -300,14 +301,15 @@ def visualize_solution_ascii(dimensions, your_position, trainer_position, max_di
     output += '\n'
     return output
 
-import turtle
 
 # Visualizes the solution using the turtle library.
 # To use:
 #   Set the sizes you would like for each grid square, and line widths.
 #   Run.
 def visualize_solution_turtle(dimensions, your_position, trainer_position, max_distance):
-    px = 16 # Grid square size in pixels
+    # This import cannot be on the top-level, it causes all test cases to fail for some reason (likely IO):
+    import turtle
+    px = 50 # Grid square size in pixels
     laser_pensize = 1  # Line width of laser lines
     grid_pensize = 1  # Line width of grid lines
 
@@ -514,7 +516,7 @@ def test(log_on_success=True, print_input=False, visualize=None):
         13: (([3, 3], [2, 1], [1, 2], 5), 7),
         14: (([3, 3], [1, 2], [2, 1], 5), 7),
         15: (([100, 100], [1,1], [2,1], 10000), 31083),
-        16: (((10, 2), (9, 1), (1, 1), 70), -1)
+        16: (([10, 2], [9, 1], [1, 1], 70), -1),
     }
 
     passed_count = 0
@@ -553,6 +555,4 @@ def test(log_on_success=True, print_input=False, visualize=None):
     if len(failed) > 0: print "Failed:", repr(failed)
     if len(errored) > 0: print "Errored:", repr(errored)
 
-test(print_input=True, log_on_success=False, visualize=None)
-
-
+# test(print_input=True, log_on_success=False, visualize=None)
